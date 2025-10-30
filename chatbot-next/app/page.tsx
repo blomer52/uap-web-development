@@ -1,69 +1,111 @@
-// app/page.tsx
-
 "use client";
 
-// 1. Importar el hook de la v2
-import { useChat } from 'ai/react';
+import { useState, FormEvent, useRef, useEffect } from "react";
+// CAMBIO 1: Importar 'Message' (para texto) y no 'UIMessage'
+import { useChat, type Message } from "@ai-sdk/react";
+import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 
 export default function Chat() {
+  const { messages, sendMessage, status, error } = useChat(); 
+  const isLoading = status === "streaming" || status === "submitted";
+  const [input, setInput] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // 2. ¡Este código AHORA SÍ va a funcionar!
-  // Los tipos de la v2 SÍ tienen 'input', 'handleSubmit', 'isLoading'
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat();
+  // Scroll
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    console.log("Mensajes actuales:", messages); 
+  }, [messages, status, error]);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    setInput("");
+    await sendMessage({ role: "user", content: trimmed });
+  };
 
   return (
-    <main className="flex flex-col w-full max-w-2xl mx-auto h-screen p-4">
+    <main className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+      <div className="flex flex-col w-full max-w-2xl h-[85vh] bg-white shadow-xl rounded-2xl border border-gray-200 overflow-hidden">
+        {/* Header */}
+        <header className="bg-indigo-600 text-white text-center py-3 text-lg font-semibold shadow">
+          Chat IA 💬
+        </header>
 
-      {/* Área de mensajes */}
-      <div className="flex-1 overflow-y-auto mb-4 p-4 rounded-lg bg-gray-100">
-        {messages.length === 0 && (
-          <div className="text-gray-500 text-center">
-            Comienza una conversación.
-          </div>
-        )}
+        {/* Mensajes */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+          {messages.length === 0 && (
+            <div className="text-gray-500 text-center mt-20">
+              Comienza una conversación ✨
+            </div>
+          )}
 
-        {/* 3. ¡Este 'm.content' AHORA SÍ va a funcionar! */}
-        {messages.map(m => (
-          <div key={m.id} className={`mb-2 p-3 rounded-lg ${
-            m.role === 'user' ? 'bg-blue-200 ml-auto' : 'bg-gray-200 mr-auto'
-          }`}>
-            <span className="font-bold">{m.role === 'user' ? 'Tú' : 'IA'}: </span>
-            {m.content} 
-          </div>
-        ))}
+          {/* CAMBIO 2: Usar 'Message' en lugar de 'UIMessage' */}
+          {messages.map((m: Message) => {
+            const isUser = m.role === "user";
+            return (
+              <div
+                key={m.id}
+                className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[75%] shadow ${
+                    isUser
+                      ? "bg-indigo-500 text-white rounded-t-2xl rounded-bl-2xl"
+                      : "bg-gray-200 text-gray-900 rounded-t-2xl rounded-br-2xl"
+                  }`}
+                >
+                  <div className="px-4 py-3">
+                    {/* CAMBIO 3: Usar 'm.content' (para texto) y no 'm.display' */}
+                    <div className="whitespace-pre-wrap break-words">
+                      {m.content}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
 
-        {/* 4. Usar 'isLoading' (el booleano simple) */}
-        {isLoading && (
-          <div className="text-gray-500 italic text-center mt-2">
-            IA está escribiendo...
-          </div>
-        )}
+          {isLoading && (
+            <div className="text-gray-500 italic text-center">
+              IA está escribiendo...
+            </div>
+          )}
 
-        {error && (
-           <div className="text-red-500 bg-red-100 p-3 rounded-lg mt-2">
-             <strong>Error:</strong> {error.message || "Hubo un problema con la API."}
-           </div>
-        )}
-      </div>
+          {error && (
+            <div className="text-red-600 bg-red-100 p-3 rounded-lg text-center">
+              <strong>Error:</strong>{" "}
+              {error.message || "Hubo un problema con la API."}
+            </div>
+          )}
 
-      {/* 5. Conectar el formulario al 'handleSubmit' del hook */}
-      <form onSubmit={handleSubmit} className="flex">
-        <input
-          className="flex-1 p-3 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-          value={input} 
-          placeholder="Escribe tu mensaje..."
-          onChange={handleInputChange} 
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          className="px-4 py-3 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 disabled:bg-gray-400"
-          disabled={isLoading || !input} // Dejamos la corrección de 'trim'
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Input */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-center gap-3 border-t border-gray-200 bg-gray-100 px-4 py-3"
         >
-          Enviar
-        </button>
-      </form>
-
+          <input
+            type="text"
+            className="flex-1 px-5 py-3 rounded-full bg-white border border-gray-300 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+            placeholder="Escribe tu mensaje..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            className="p-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 active:scale-95 transition focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-400 shadow"
+          >
+            <PaperAirplaneIcon className="w-5 h-5" />
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

@@ -1,6 +1,10 @@
+// postcss.config.mjs (CORREGIDO)
+
+/** @type {import('postcss-load-config').Config} */
 const config = {
   plugins: {
-    "@tailwindcss/postcss": {},
+    '@tailwindcss/postcss': {}, // <--- ¡ESTA ES LA LÍNEA CORRECTA!
+    autoprefixer: {},
   },
 };
 
